@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#15182b">
+<meta name="description" content="Hexagon — a memory + arithmetic puzzle inspired by The Devil's Plan. Memorize the honeycomb, then find three touching tiles that sum to the target.">
+<title>Hexagon</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #15182b;
+    --bg2: #1d2138;
+    --panel: #232845;
+    --line: #343a5e;
+    --text: #e7e9f5;
+    --muted: #9aa0c4;
+    --accent: #ffce5c;
+    --accent2: #5cc8ff;
+    --good: #56d98b;
+    --bad: #ff6b7d;
+    --hex: #c6cad9;
+    --hex-text: #1b2138;
+    --hex-sel: #5cc8ff;
+    --hex-good: #56d98b;
+    --hex-bad: #ff6b7d;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 800px at 50% -10%, #20264a 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+
+  .screen { width: 100%; max-width: 560px; padding: 18px 16px 28px; flex: 1; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ---------- Start screen ---------- */
+  #start { align-items: center; justify-content: center; gap: 22px; text-align: center; min-height: 100dvh; }
+  .logo { width: 96px; height: 96px; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+  .title { font-size: 2.6rem; font-weight: 800; letter-spacing: 1px; }
+  .subtitle { color: var(--muted); font-size: .98rem; margin-top: -10px; }
+  .blurb { color: var(--muted); font-size: .92rem; line-height: 1.5; max-width: 380px; }
+
+  .diff-group { display: flex; gap: 10px; width: 100%; max-width: 380px; }
+  .diff-btn {
+    flex: 1; padding: 12px 6px; border-radius: 12px; border: 2px solid var(--line);
+    background: var(--panel); color: var(--muted); font-weight: 700; font-size: 1rem;
+    cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 3px; align-items: center;
+  }
+  .diff-btn small { font-weight: 500; font-size: .68rem; opacity: .8; }
+  .diff-btn.sel { border-color: var(--accent); color: var(--text); background: #2c3157; box-shadow: 0 0 0 3px rgba(255,206,92,.12); }
+
+  .best-line { color: var(--muted); font-size: .9rem; }
+  .best-line b { color: var(--accent); }
+
+  .btn {
+    border: none; border-radius: 12px; padding: 14px 30px; font-size: 1.1rem; font-weight: 800;
+    cursor: pointer; transition: transform .1s, filter .15s; color: #15182b;
+    background: linear-gradient(180deg, var(--accent) 0%, #f4b73e 100%);
+  }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  .btn.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); font-weight: 700; font-size: .95rem; padding: 10px 18px; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .4; cursor: default; }
+
+  /* ---------- Game screen ---------- */
+  #game { gap: 14px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .topbar .left { display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--text); font-size: 1.1rem; cursor: pointer; display: grid; place-items: center;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; text-align: center; }
+  .stat .k { font-size: .64rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .stat .v { font-size: 1.4rem; font-weight: 800; line-height: 1.15; }
+  .stat.target .v { color: var(--accent); }
+  .stat.streak .v { color: var(--accent2); }
+
+  .phase-line { display: flex; justify-content: center; align-items: baseline; font-size: 1rem; }
+  .phase-line .label { font-weight: 700; }
+  .phase-line .label.memorize { color: var(--accent); }
+  .phase-line .label.solve { color: var(--accent2); }
+
+  .board-wrap { display: grid; place-items: center; padding: 4px 0; }
+  svg.board { width: min(94vw, 460px); height: auto; touch-action: manipulation; overflow: visible; }
+  .hexcell { cursor: pointer; }
+  .hexcell polygon {
+    fill: var(--hex); stroke: #0c1024; stroke-width: .8; transition: fill .12s, transform .12s;
+  }
+  .hexcell text { pointer-events: none; dominant-baseline: central; text-anchor: middle; font-weight: 800; }
+  .hexcell .letter { font-size: 8px; fill: #3a4068; }
+  .hexcell .num { font-size: 8.6px; fill: var(--hex-text); }
+  .hexcell.sel polygon { fill: var(--hex-sel); }
+  .hexcell.sel .letter { fill: #16384e; }
+  .hexcell.dim { cursor: default; }
+  .hexcell.dim polygon { fill: #2f3556; stroke: #20253f; }
+  .hexcell.dim .letter { fill: #5a608a; }
+  .hexcell.dim .num { fill: #5a608a; }
+  .hexcell.flash-good polygon { fill: var(--hex-good); }
+  .hexcell.flash-bad polygon { fill: var(--hex-bad); }
+  .hexcell.shake { animation: shake .32s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-2px); }
+    40% { transform: translateX(2px); } 60% { transform: translateX(-1.4px); } 80% { transform: translateX(1.4px); }
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(10px);
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: .95rem;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.good { border-color: var(--good); color: var(--good); }
+  .toast.bad { border-color: var(--bad); color: var(--bad); }
+
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 2px; }
+
+  .found-wrap { margin-top: 4px; }
+  .found-title { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .found-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+  .chip { background: #243a2e; border: 1px solid #2f6b48; color: var(--good); padding: 4px 10px; border-radius: 999px; font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Summary modal ---------- */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(8,10,22,.72); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; padding: 20px; z-index: 100;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--line); border-radius: 18px; padding: 26px 22px;
+    width: 100%; max-width: 380px; text-align: center; display: flex; flex-direction: column; gap: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal h2 { font-size: 1.6rem; }
+  .modal .big-score { font-size: 3rem; font-weight: 900; color: var(--accent); line-height: 1; }
+  .modal .row { display: flex; justify-content: space-between; font-size: .96rem; color: var(--muted); }
+  .modal .row b { color: var(--text); }
+  .modal .new-best { color: var(--good); font-weight: 800; }
+  .modal .btns { display: flex; gap: 10px; margin-top: 6px; }
+  .modal .btns .btn { flex: 1; padding: 12px; font-size: 1rem; }
+
+  .foot { color: var(--muted); font-size: .78rem; text-align: center; padding: 8px; }
+  .foot a { color: var(--accent2); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ===================== START ===================== -->
+<section id="start" class="screen active">
+  <img src="icon.svg" class="logo" alt="">
+  <div>
+    <div class="title">HEXAGON</div>
+    <div class="subtitle">inspired by The Devil's Plan</div>
+  </div>
+  <p class="blurb">Memorize the honeycomb of numbers. When they vanish, pick <b>three tiles in a straight line</b> that add up to the <b>target</b>. Find as many as you can before time runs out.</p>
+
+  <div class="diff-group" id="diffGroup">
+    <button class="diff-btn" data-diff="easy">Easy<small>relaxed</small></button>
+    <button class="diff-btn sel" data-diff="medium">Medium<small>balanced</small></button>
+    <button class="diff-btn" data-diff="hard">Hard<small>brutal</small></button>
+  </div>
+
+  <div class="best-line">Best (<span id="startDiffName">Medium</span>): <b id="startBest">0</b></div>
+  <button class="btn" id="playBtn">Play</button>
+</section>
+
+<!-- ===================== GAME ===================== -->
+<section id="game" class="screen">
+  <div class="topbar">
+    <div class="left">
+      <button class="icon-btn" id="quitBtn" title="Back to menu">&#x2190;</button>
+      <strong>Hexagon</strong>
+    </div>
+    <button class="btn secondary" id="newBoardBtn">New board</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat target"><div class="k">Target</div><div class="v" id="statTarget">0</div></div>
+    <div class="stat"><div class="k">Score</div><div class="v" id="statScore">0</div></div>
+    <div class="stat streak"><div class="k">Streak</div><div class="v" id="statStreak">0</div></div>
+    <div class="stat"><div class="k">Found</div><div class="v" id="statFound">0</div></div>
+  </div>
+
+  <div class="phase-line">
+    <span class="label" id="phaseLabel">Memorize</span>
+  </div>
+
+  <div class="board-wrap" id="boardWrap"></div>
+
+  <div class="controls">
+    <button class="btn secondary" id="readyBtn">I'm ready &#x2192;</button>
+    <button class="btn secondary" id="peekBtn">&#128065; Peek (0)</button>
+  </div>
+
+  <div class="found-wrap" id="foundWrap">
+    <div class="found-title">Found combos</div>
+    <div class="found-list" id="foundList"></div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===================== SUMMARY ===================== -->
+<div class="modal-bg" id="summaryBg">
+  <div class="modal">
+    <h2 id="sumTitle">Time!</h2>
+    <div class="big-score" id="sumScore">0</div>
+    <div class="new-best" id="sumNewBest" style="display:none">&#127881; New best!</div>
+    <div class="row"><span>Combos found</span><b id="sumFound">0 / 0</b></div>
+    <div class="row"><span>Best streak</span><b id="sumStreak">0</b></div>
+    <div class="row"><span>Best (<span id="sumDiffName">Medium</span>)</span><b id="sumBest">0</b></div>
+    <div class="btns">
+      <button class="btn secondary" id="sumHomeBtn">Menu</button>
+      <button class="btn" id="sumAgainBtn">Play again</button>
+    </div>
+  </div>
+</div>
+
+<div class="foot">Built for fun &middot; <a href="https://en.wikipedia.org/wiki/The_Devil%27s_Plan" target="_blank" rel="noopener">The Devil's Plan</a></div>
+
+<script>
+//// ---------------- Config ----------------
+const DIFF = {
+  easy:   { label: 'Easy',   memorize: 30, solve: 90, peeks: 5, targetMin: 6,  targetMax: 9  },
+  medium: { label: 'Medium', memorize: 30, solve: 90, peeks: 3, targetMin: 9,  targetMax: 13 },
+  hard:   { label: 'Hard',   memorize: 30, solve: 90, peeks: 1, targetMin: 12, targetMax: 16 },
+};
+const BEST_KEY = 'hexagon-best-v1';
+const DIFF_KEY = 'hexagon-diff-v1';
+
+//// ---------------- Board geometry (axial hexhex, radius 2 = 19 tiles) ----------------
+const AX_DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+const S = 10; // hex size (centre -> corner) in SVG units
+
+function buildBoard() {
+  const cells = [];
+  for (let r = -2; r <= 2; r++) {
+    for (let q = -2; q <= 2; q++) {
+      if (Math.abs(q + r) <= 2) cells.push({ q, r });
+    }
+  }
+  cells.forEach((c, i) => { c.key = String.fromCharCode(65 + i); });
+  cells.forEach(c => {
+    c.cx = S * Math.sqrt(3) * (c.q + c.r / 2);
+    c.cy = S * 1.5 * c.r;
+  });
+  const byCoord = {};
+  cells.forEach(c => { byCoord[c.q + ',' + c.r] = c; });
+  cells.forEach(c => {
+    c.neighbors = AX_DIRS
+      .map(([dq, dr]) => byCoord[(c.q + dq) + ',' + (c.r + dr)])
+      .filter(Boolean).map(n => n.key);
+  });
+  return cells;
+}
+
+const CELLS = buildBoard();
+const MAP = {}; CELLS.forEach(c => { MAP[c.key] = c; });
+const COORD = {}; CELLS.forEach(c => { COORD[c.q + ',' + c.r] = c; });
+
+// Straight-line triples only: three tiles collinear along a hex axis (P, P+d, P+2d).
+// Bent / triangle shapes are NOT valid selections (Devil's Plan rule).
+const TRIPLES = (() => {
+  const seen = new Set(); const out = [];
+  CELLS.forEach(c => {
+    AX_DIRS.forEach(([dq, dr]) => {
+      const m = COORD[(c.q + dq) + ',' + (c.r + dr)];
+      const e = COORD[(c.q + 2 * dq) + ',' + (c.r + 2 * dr)];
+      if (m && e) {
+        const id = [c.key, m.key, e.key].sort().join('');
+        if (!seen.has(id)) { seen.add(id); out.push([c.key, m.key, e.key]); }
+      }
+    });
+  });
+  return out;
+})();
+
+function hexPoints(cx, cy) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const ang = Math.PI / 180 * (60 * i - 90);
+    pts.push((cx + S * Math.cos(ang)).toFixed(2) + ',' + (cy + S * Math.sin(ang)).toFixed(2));
+  }
+  return pts.join(' ');
+}
+
+// viewBox
+const VB = (() => {
+  const xs = CELLS.map(c => c.cx), ys = CELLS.map(c => c.cy);
+  const pad = S * 1.3;
+  const minX = Math.min(...xs) - S - pad, maxX = Math.max(...xs) + S + pad;
+  const minY = Math.min(...ys) - S - pad, maxY = Math.max(...ys) + S + pad;
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+})();
+
+//// ---------------- Number generation ----------------
+function genValues(target) {
+  const maxV = Math.max(2, Math.floor(target * 0.6));
+  let best = null;
+  for (let attempt = 0; attempt < 800; attempt++) {
+    const vals = {};
+    CELLS.forEach(c => { vals[c.key] = 1 + Math.floor(Math.random() * maxV); });
+    const sols = TRIPLES.filter(t => t.reduce((a, k) => a + vals[k], 0) === target);
+    if (sols.length >= 2 && sols.length <= 8) return { vals, solutions: sols.length };
+    if (sols.length >= 1 && !best) best = { vals, solutions: sols.length };
+  }
+  return best || { vals: (() => { const v = {}; CELLS.forEach(c => v[c.key] = 1); return v; })(), solutions: 0 };
+}
+
+//// ---------------- State ----------------
+let state = {
+  diff: 'medium',
+  phase: 'start',     // start | memorize | solve
+  vals: {},
+  target: 0,
+  totalSolutions: 0,
+  selected: [],
+  found: new Set(),
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  reveal: false,      // numbers currently visible?
+  peeksLeft: 0,
+  phaseEndsAt: 0,
+  phaseDur: 0,
+};
+let ticker = null;
+let peekTimeout = null;
+
+//// ---------------- Persistence ----------------
+function loadBest() {
+  try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {}; } catch { return {}; }
+}
+function bestFor(diff) { return loadBest()[diff] || 0; }
+function saveBest(diff, score) {
+  const all = loadBest();
+  if (score > (all[diff] || 0)) { all[diff] = score; localStorage.setItem(BEST_KEY, JSON.stringify(all)); return true; }
+  return false;
+}
+
+//// ---------------- DOM ----------------
+const $ = id => document.getElementById(id);
+const screens = { start: $('start'), game: $('game') };
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name === 'start' ? 'start' : 'game'].classList.add('active');
+}
+
+//// ---------------- Start screen ----------------
+function refreshStartBest() {
+  $('startDiffName').textContent = DIFF[state.diff].label;
+  $('startBest').textContent = bestFor(state.diff);
+}
+$('diffGroup').addEventListener('click', e => {
+  const btn = e.target.closest('.diff-btn'); if (!btn) return;
+  state.diff = btn.dataset.diff;
+  localStorage.setItem(DIFF_KEY, state.diff);
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b === btn));
+  refreshStartBest();
+});
+$('playBtn').addEventListener('click', () => newGame());
+
+//// ---------------- Game flow ----------------
+function newGame() {
+  showScreen('game');
+  newBoard();
+}
+
+function newBoard() {
+  const cfg = DIFF[state.diff];
+  state.target = cfg.targetMin + Math.floor(Math.random() * (cfg.targetMax - cfg.targetMin + 1));
+  const gen = genValues(state.target);
+  state.vals = gen.vals;
+  state.totalSolutions = gen.solutions;
+  state.selected = [];
+  state.found = new Set();
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.peeksLeft = cfg.peeks;
+  // The found-combos list is an Easy-mode aid only; hidden on Medium/Hard.
+  $('foundWrap').style.display = state.diff === 'easy' ? '' : 'none';
+  startPhase('memorize');
+  renderStats();
+  renderFound();
+  renderBoard();
+}
+
+function startPhase(phase) {
+  const cfg = DIFF[state.diff];
+  state.phase = phase;
+  state.reveal = (phase === 'memorize');
+  state.selected = [];
+  if (phase === 'memorize') {
+    state.phaseDur = cfg.memorize;
+    $('phaseLabel').textContent = 'Memorize the numbers';
+    $('phaseLabel').className = 'label memorize';
+    $('readyBtn').style.display = '';
+    $('peekBtn').style.display = 'none';
+  } else {
+    state.phaseDur = cfg.solve;
+    $('phaseLabel').textContent = 'Find the combos!';
+    $('phaseLabel').className = 'label solve';
+    $('readyBtn').style.display = 'none';
+    $('peekBtn').style.display = '';
+  }
+  state.phaseEndsAt = Date.now() + state.phaseDur * 1000;
+  updatePeekBtn();
+  startTicker();
+  renderBoard();
+}
+
+function startTicker() {
+  if (ticker) clearInterval(ticker);
+  tick();
+  ticker = setInterval(tick, 200);
+}
+function tick() {
+  // Timer is intentionally hidden from the player — we only watch for expiry.
+  const remMs = Math.max(0, state.phaseEndsAt - Date.now());
+  if (remMs <= 0) {
+    if (state.phase === 'memorize') startPhase('solve');
+    else if (state.phase === 'solve') endRound();
+  }
+}
+
+function endRound() {
+  if (ticker) { clearInterval(ticker); ticker = null; }
+  state.phase = 'summary';
+  const newBest = saveBest(state.diff, state.score);
+  $('sumScore').textContent = state.score;
+  $('sumNewBest').style.display = newBest ? '' : 'none';
+  $('sumFound').textContent = state.found.size + ' / ' + state.totalSolutions;
+  $('sumStreak').textContent = state.bestStreak;
+  $('sumDiffName').textContent = DIFF[state.diff].label;
+  $('sumBest').textContent = bestFor(state.diff);
+  $('summaryBg').classList.add('active');
+}
+
+//// ---------------- Rendering ----------------
+function allowedSet() {
+  if (state.phase !== 'solve') return new Set();        // no selection outside solve
+  const sel = state.selected;
+  if (sel.length === 0) return null;                     // null => all selectable
+  if (sel.length === 1) {                                // 2nd tile sets the line direction
+    return new Set(MAP[sel[0]].neighbors);
+  }
+  // 2 tiles chosen -> only the two collinear extensions are valid (straight line, no angles)
+  const a = MAP[sel[0]], b = MAP[sel[1]];
+  const dq = b.q - a.q, dr = b.r - a.r;
+  const allow = new Set();
+  const back = COORD[(a.q - dq) + ',' + (a.r - dr)];     // extend before the first tile
+  const fwd  = COORD[(b.q + dq) + ',' + (b.r + dr)];     // extend after the second tile
+  if (back) allow.add(back.key);
+  if (fwd) allow.add(fwd.key);
+  return allow;
+}
+
+function renderBoard() {
+  const allow = allowedSet();
+  const selSet = new Set(state.selected);
+  let svg = `<svg class="board" viewBox="${VB.x.toFixed(1)} ${VB.y.toFixed(1)} ${VB.w.toFixed(1)} ${VB.h.toFixed(1)}" role="group" aria-label="hexagon board">`;
+  CELLS.forEach(c => {
+    const isSel = selSet.has(c.key);
+    const selectable = state.phase === 'solve' && (allow === null || allow.has(c.key) || isSel);
+    const dim = state.phase === 'solve' && !selectable;
+    const cls = ['hexcell', isSel ? 'sel' : '', dim ? 'dim' : ''].filter(Boolean).join(' ');
+    // Memorize/peek shows the number; while guessing the letter is shown instead.
+    const label = state.reveal ? state.vals[c.key] : c.key;
+    svg += `<g class="${cls}" data-key="${c.key}">` +
+           `<polygon points="${hexPoints(c.cx, c.cy)}"></polygon>` +
+           `<text class="${state.reveal ? 'num' : 'letter'}" x="${c.cx.toFixed(2)}" y="${c.cy.toFixed(2)}">${label}</text></g>`;
+  });
+  svg += `</svg>`;
+  $('boardWrap').innerHTML = svg;
+  $('boardWrap').querySelectorAll('.hexcell').forEach(g => {
+    g.addEventListener('click', () => onHexClick(g.dataset.key));
+  });
+}
+
+function renderStats() {
+  $('statTarget').textContent = state.target;
+  $('statScore').textContent = state.score;
+  $('statStreak').textContent = state.streak;
+  $('statFound').textContent = state.found.size;
+}
+function renderFound() {
+  const list = $('foundList');
+  list.innerHTML = '';
+  state.found.forEach(id => {
+    const keys = id.split('');
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = keys.join('') + ' · ' + keys.map(k => state.vals[k]).join('+') + ' = ' + state.target;
+    list.appendChild(chip);
+  });
+}
+
+function updatePeekBtn() {
+  $('peekBtn').textContent = `\u{1F441} Peek (${state.peeksLeft})`;
+  $('peekBtn').disabled = state.peeksLeft <= 0 || state.reveal;
+}
+
+//// ---------------- Interaction ----------------
+function onHexClick(key) {
+  if (state.phase !== 'solve') return;
+  const allow = allowedSet();
+  const isSel = state.selected.includes(key);
+  if (!isSel) {
+    if (allow !== null && !allow.has(key)) return;       // not adjacent -> ignore
+    state.selected.push(key);
+  } else {
+    state.selected = state.selected.filter(k => k !== key);
+  }
+  if (state.selected.length === 3) {
+    evaluateGuess();
+  } else {
+    renderBoard();
+  }
+}
+
+function evaluateGuess() {
+  const keys = [...state.selected];
+  const id = keys.slice().sort().join('');
+  const sum = keys.reduce((a, k) => a + state.vals[k], 0);
+
+  if (state.found.has(id)) {
+    state.streak = 0;
+    state.score -= 1;
+    flashCells(keys, 'flash-bad', true);
+    toast(`Already found  −1`, 'bad');
+    renderStats();
+    clearSelectionSoon();
+    return;
+  }
+  if (sum === state.target) {
+    state.found.add(id);
+    state.streak += 1;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    const bonus = Math.floor(state.streak / 3);
+    const pts = 1 + bonus;
+    state.score += pts;
+    flashCells(keys, 'flash-good', false);
+    toast(`+${pts}` + (bonus ? `  \u{1F525}x${state.streak}` : '') + `  ${keys.join('')} = ${keys.map(k=>state.vals[k]).join('+')}`, 'good');
+    renderFound();
+  } else {
+    state.streak = 0;
+    state.score -= 1;
+    flashCells(keys, 'flash-bad', true);
+    toast(`✕  ${keys.join('')}: ${keys.map(k=>state.vals[k]).join('+')} = ${sum}`, 'bad');
+  }
+  renderStats();
+  clearSelectionSoon();
+}
+
+function clearSelectionSoon() {
+  setTimeout(() => { state.selected = []; renderBoard(); }, 520);
+}
+
+function flashCells(keys, cls, shake) {
+  const nodes = keys.map(k => $('boardWrap').querySelector(`.hexcell[data-key="${k}"]`)).filter(Boolean);
+  nodes.forEach(n => { n.classList.add(cls); if (shake) n.classList.add('shake'); });
+}
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (kind || '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast ' + (kind || ''); }, 1100);
+}
+
+//// ---------------- Controls ----------------
+$('readyBtn').addEventListener('click', () => { if (state.phase === 'memorize') startPhase('solve'); });
+
+$('peekBtn').addEventListener('click', () => {
+  if (state.phase !== 'solve' || state.peeksLeft <= 0 || state.reveal) return;
+  state.peeksLeft -= 1;
+  state.reveal = true;
+  updatePeekBtn();
+  renderBoard();
+  if (peekTimeout) clearTimeout(peekTimeout);
+  peekTimeout = setTimeout(() => {
+    state.reveal = false;
+    updatePeekBtn();
+    renderBoard();
+  }, 1100);
+});
+
+$('newBoardBtn').addEventListener('click', () => {
+  if (peekTimeout) clearTimeout(peekTimeout);
+  newBoard();
+});
+
+$('quitBtn').addEventListener('click', quitToMenu);
+
+function quitToMenu() {
+  if (ticker) { clearInterval(ticker); ticker = null; }
+  if (peekTimeout) clearTimeout(peekTimeout);
+  if (state.phase === 'solve' || state.phase === 'memorize') saveBest(state.diff, state.score);
+  state.phase = 'start';
+  $('summaryBg').classList.remove('active');
+  refreshStartBest();
+  showScreen('start');
+}
+
+$('sumHomeBtn').addEventListener('click', () => { $('summaryBg').classList.remove('active'); quitToMenu(); });
+$('sumAgainBtn').addEventListener('click', () => { $('summaryBg').classList.remove('active'); newBoard(); });
+
+//// ---------------- Init ----------------
+(function init() {
+  const savedDiff = localStorage.getItem(DIFF_KEY);
+  if (savedDiff && DIFF[savedDiff]) state.diff = savedDiff;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b.dataset.diff === state.diff));
+  refreshStartBest();
+})();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

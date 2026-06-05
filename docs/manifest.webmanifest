@@ -1,0 +1,31 @@
+{
+  "name": "Hexagon",
+  "short_name": "Hexagon",
+  "description": "A memory + arithmetic puzzle inspired by The Devil's Plan. Memorize the honeycomb, then find three touching tiles that sum to the target.",
+  "start_url": "/hexagon/",
+  "scope": "/hexagon/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#15182b",
+  "theme_color": "#15182b",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

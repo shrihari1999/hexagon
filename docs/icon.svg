@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so launchers mask edge-to-edge -->
+  <rect width="512" height="512" fill="#15182b"/>
+  <!-- Seven-hex honeycomb cluster, kept inside the maskable safe zone -->
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-weight="800" font-size="46"
+     text-anchor="middle" dominant-baseline="central">
+    <!-- pointy-top hex: 88 unit centre->corner; sqrt(3)*88≈152 horiz, 1.5*88=132 vert -->
+    <!-- top-left -->
+    <g transform="translate(180,180)"><polygon points="0,-88 76,-44 76,44 0,88 -76,44 -76,-44" fill="#c6cad9" stroke="#0c1024" stroke-width="6"/><text fill="#1b2138">4</text></g>
+    <!-- top-right -->
+    <g transform="translate(332,180)"><polygon points="0,-88 76,-44 76,44 0,88 -76,44 -76,-44" fill="#5cc8ff" stroke="#0c1024" stroke-width="6"/><text fill="#10283a">7</text></g>
+    <!-- centre -->
+    <g transform="translate(256,312)"><polygon points="0,-88 76,-44 76,44 0,88 -76,44 -76,-44" fill="#ffce5c" stroke="#0c1024" stroke-width="6"/><text fill="#3a2c08">5</text></g>
+  </g>
+</svg>
