@@ -424,6 +424,7 @@ function startPhase(phase) {
   state.phaseEndsAt = Date.now() + state.phaseDur * 1000;
   updatePeekBtn();
   startTicker();
+  renderStats();
   renderBoard();
 }
 
@@ -496,7 +497,8 @@ function renderBoard() {
 }
 
 function renderStats() {
-  $('statTarget').textContent = state.target;
+  // Target stays hidden during memorize so it's only revealed once guessing begins.
+  $('statTarget').textContent = state.phase === 'memorize' ? '?' : state.target;
   $('statScore').textContent = state.score;
   $('statStreak').textContent = state.streak;
   $('statFound').textContent = state.found.size;
